@@ -232,9 +232,9 @@ const CATEGORIES_QUERIES = {
 const LOANS_QUERIES = {
   // Crear préstamo
   CREATE_LOAN: `
-        INSERT INTO loans (user_id, book_id, loan_date, due_date, created_by)
-        VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + INTERVAL '$3 days', $4)
-        RETURNING id, loan_date, due_date
+      INSERT INTO loans (user_id, book_id, loan_date, due_date, created_by)
+      VALUES ($1, $2, CURRENT_DATE, $3, $4)
+      RETURNING id, loan_date, due_date
     `,
 
   // Obtener préstamos activos de usuario

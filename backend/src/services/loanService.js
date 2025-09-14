@@ -134,7 +134,12 @@ const processNewLoan = async (loanData, processedBy) => {
     const queries = [
       {
         query: LOANS_QUERIES.CREATE_LOAN,
-        params: [user_id, book_id, loan_days, processedBy],
+        params: [
+          user_id,
+          book_id,
+          dueDate.toISOString().split("T")[0],
+          processedBy,
+        ],
         context: "Create loan",
       },
     ];
