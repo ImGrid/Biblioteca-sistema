@@ -341,7 +341,9 @@ const validateObject = (obj, validationRules) => {
   };
 };
 
-// Validaciones específicas para modelos
+// VALIDACIONES ESPECÍFICAS PARA MODELOS
+
+// Validación para AUTOREGISTRO de usuarios (SIN campo role)
 const validateUserRegistration = (userData) => {
   return validateObject(userData, {
     email: validateEmail,
@@ -349,7 +351,62 @@ const validateUserRegistration = (userData) => {
     first_name: (value) => validateName(value, "Nombre"),
     last_name: (value) => validateName(value, "Apellido"),
     phone: validatePhone,
-    role: validateRole,
+    address: (value) =>
+      validateString(value, "Dirección", {
+        required: false,
+        maxLength: 500,
+      }),
+    // NO incluye role - se hardcodea como "user" en el controlador
+  });
+};
+
+// Validación para ADMIN creando usuarios (CON campo role)
+const validateUserCreation = (userData) => {
+  return validateObject(userData, {
+    email: validateEmail,
+    password: validatePassword,
+    first_name: (value) => validateName(value, "Nombre"),
+    last_name: (value) => validateName(value, "Apellido"),
+    phone: validatePhone,
+    address: (value) =>
+      validateString(value, "Dirección", {
+        required: false,
+        maxLength: 500,
+      }),
+    role: validateRole, // SÍ incluye role para admin
+  });
+};
+
+// Validación para actualización de perfil de usuario
+const validateProfileUpdate = (userData) => {
+  return validateObject(userData, {
+    first_name: (value) => {
+      if (value !== undefined) {
+        return validateName(value, "Nombre");
+      }
+      return { valid: true, value: undefined };
+    },
+    last_name: (value) => {
+      if (value !== undefined) {
+        return validateName(value, "Apellido");
+      }
+      return { valid: true, value: undefined };
+    },
+    phone: (value) => {
+      if (value !== undefined) {
+        return validatePhone(value);
+      }
+      return { valid: true, value: undefined };
+    },
+    address: (value) => {
+      if (value !== undefined) {
+        return validateString(value, "Dirección", {
+          required: false,
+          maxLength: 500,
+        });
+      }
+      return { valid: true, value: undefined };
+    },
   });
 };
 
@@ -438,6 +495,8 @@ module.exports = {
   detectXSS,
   validateObject,
   validateUserRegistration,
+  validateUserCreation,
+  validateProfileUpdate,
   validateBookData,
   validatePagination,
   LENGTH_LIMITS,

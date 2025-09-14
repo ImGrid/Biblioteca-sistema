@@ -12,6 +12,10 @@ const {
   validateUserRegistration,
   validateEmail,
   validatePassword,
+  validateObject,
+  validateName,
+  validatePhone,
+  validateString,
 } = require("../utils/validation");
 const {
   createAuthenticationError,
@@ -263,16 +267,35 @@ const verifyToken = asyncHandler(async (req, res) => {
 const updateProfile = asyncHandler(async (req, res) => {
   const { first_name, last_name, phone, address } = req.body;
 
-  // Validar datos de entrada
+  // CORREGIDO: Validar datos de entrada con imports disponibles
   const validation = validateObject(req.body, {
-    first_name: (value) => validateName(value, "Nombre"),
-    last_name: (value) => validateName(value, "Apellido"),
-    phone: validatePhone,
-    address: (value) =>
-      validateString(value, "Dirección", {
-        required: false,
-        maxLength: 500,
-      }),
+    first_name: (value) => {
+      if (value !== undefined) {
+        return validateName(value, "Nombre");
+      }
+      return { valid: true, value: undefined };
+    },
+    last_name: (value) => {
+      if (value !== undefined) {
+        return validateName(value, "Apellido");
+      }
+      return { valid: true, value: undefined };
+    },
+    phone: (value) => {
+      if (value !== undefined) {
+        return validatePhone(value);
+      }
+      return { valid: true, value: undefined };
+    },
+    address: (value) => {
+      if (value !== undefined) {
+        return validateString(value, "Dirección", {
+          required: false,
+          maxLength: 500,
+        });
+      }
+      return { valid: true, value: undefined };
+    },
   });
 
   if (!validation.valid) {
@@ -282,7 +305,10 @@ const updateProfile = asyncHandler(async (req, res) => {
   try {
     const updateQuery = `
             UPDATE users 
-            SET first_name = $1, last_name = $2, phone = $3, address = $4, 
+            SET first_name = COALESCE($1, first_name), 
+                last_name = COALESCE($2, last_name), 
+                phone = COALESCE($3, phone), 
+                address = COALESCE($4, address),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $5 AND is_active = true
             RETURNING id, email, first_name, last_name, phone, address, role, updated_at
@@ -315,7 +341,9 @@ const updateProfile = asyncHandler(async (req, res) => {
       "Profile updated",
       {
         user_id: req.user.id,
-        updated_fields: Object.keys(validation.data),
+        updated_fields: Object.keys(validation.data).filter(
+          (key) => validation.data[key] !== undefined
+        ),
       },
       req
     );

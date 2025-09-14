@@ -20,26 +20,78 @@ const searchBooks = asyncHandler(async (req, res) => {
   // Validar parámetros de paginación
   const pagination = validatePagination(req.query);
 
-  // Preparar parámetros de búsqueda
-  const searchTerm = q ? q.trim() : null;
-  const categoryId = category ? parseInt(category) : null;
-  const onlyAvailable = available_only === "true" ? true : null;
+  // CORREGIDO: Preparar parámetros con valores por defecto en lugar de null
+  const searchTerm = q && q.trim() ? q.trim() : "";
+  const categoryId =
+    category && !isNaN(parseInt(category)) ? parseInt(category) : 0;
+  const onlyAvailable = available_only === "true" ? 1 : 0;
 
-  // Query de búsqueda con parámetros
-  const searchParams = [
-    searchTerm,
-    categoryId,
-    onlyAvailable,
-    pagination.limit,
-    (pagination.page - 1) * pagination.limit,
-  ];
-  const countParams = [searchTerm, categoryId, onlyAvailable];
+  // CORREGIDO: Query actualizada para manejar valores por defecto
+  const searchQuery = `
+    SELECT b.id, b.title, b.isbn, b.publisher, b.publication_year,
+           b.total_copies, b.available_copies, b.location, b.description,
+           c.name as category_name,
+           STRING_AGG(CONCAT(a.first_name, ' ', a.last_name), ', ' ORDER BY ba.id) as authors
+    FROM books b
+    LEFT JOIN categories c ON b.category_id = c.id
+    LEFT JOIN book_authors ba ON b.id = ba.book_id
+    LEFT JOIN authors a ON ba.author_id = a.id
+    WHERE (
+      CASE 
+        WHEN $1 = '' THEN TRUE 
+        ELSE LOWER(b.title) LIKE LOWER('%' || $1 || '%') 
+      END
+    )
+    AND (
+      CASE 
+        WHEN $2 = 0 THEN TRUE 
+        ELSE b.category_id = $2 
+      END
+    )
+    AND (
+      CASE 
+        WHEN $3 = 0 THEN TRUE 
+        ELSE b.available_copies > 0 
+      END
+    )
+    GROUP BY b.id, b.title, b.isbn, b.publisher, b.publication_year,
+             b.total_copies, b.available_copies, b.location, b.description, c.name
+    ORDER BY b.title
+    LIMIT $4 OFFSET $5
+  `;
+
+  const countQuery = `
+    SELECT COUNT(DISTINCT b.id) as total 
+    FROM books b
+    LEFT JOIN categories c ON b.category_id = c.id
+    WHERE (
+      CASE 
+        WHEN $1 = '' THEN TRUE 
+        ELSE LOWER(b.title) LIKE LOWER('%' || $1 || '%') 
+      END
+    )
+    AND (
+      CASE 
+        WHEN $2 = 0 THEN TRUE 
+        ELSE b.category_id = $2 
+      END
+    )
+    AND (
+      CASE 
+        WHEN $3 = 0 THEN TRUE 
+        ELSE b.available_copies > 0 
+      END
+    )
+  `;
+
+  // Parámetros comunes para ambas queries
+  const queryParams = [searchTerm, categoryId, onlyAvailable];
 
   try {
     const result = await executeQueryPaginated(
-      BOOKS_QUERIES.SEARCH_BOOKS,
-      BOOKS_QUERIES.COUNT_BOOKS,
-      countParams,
+      searchQuery,
+      countQuery,
+      queryParams, // CORREGIDO: Parámetros consistentes
       pagination
     );
 
@@ -52,9 +104,9 @@ const searchBooks = asyncHandler(async (req, res) => {
     logger.audit(
       "Books search performed",
       {
-        search_term: searchTerm,
-        category_id: categoryId,
-        available_only: onlyAvailable,
+        search_term: searchTerm || "all",
+        category_id: categoryId || "all",
+        available_only: onlyAvailable === 1,
         results_count: result.data.length,
         user_id: req.user.id,
         user_role: req.user.role,
@@ -472,7 +524,7 @@ const getAllBooks = asyncHandler(async (req, res) => {
     const result = await executeQueryPaginated(
       getAllQuery,
       countQuery,
-      [],
+      [], // Sin parámetros adicionales para esta query
       pagination
     );
 

@@ -10,6 +10,14 @@ const {
 } = require("../middleware/rateLimiter");
 const { validateRequest } = require("../middleware/errorHandler");
 
+// IMPORTS CORREGIDOS - Importar funciones de validación
+const {
+  validateUserRegistration,
+  validateName,
+  validatePhone,
+  validateString,
+} = require("../utils/validation");
+
 // Validación específica para login
 const validateLogin = (data) => {
   const errors = {};
@@ -68,11 +76,6 @@ const validatePasswordChange = (data) => {
 
 // Validación para actualización de perfil
 const validateProfileUpdate = (data) => {
-  const {
-    validateName,
-    validatePhone,
-    validateString,
-  } = require("../utils/validation");
   const errors = {};
   const validatedData = {};
 
@@ -122,13 +125,13 @@ const validateProfileUpdate = (data) => {
   };
 };
 
-// Rutas públicas (sin autenticación)
+// RUTAS PÚBLICAS (sin autenticación)
 
 // POST /api/auth/register - Registro de nuevos usuarios
 router.post(
   "/register",
   authRateLimit, // Rate limiting específico para auth
-  validateRequest(validateUserRegistration),
+  validateRequest(validateUserRegistration), // CORREGIDO: Import ya disponible
   authController.register
 );
 
@@ -140,7 +143,7 @@ router.post(
   authController.login
 );
 
-// Rutas protegidas (requieren autenticación)
+// RUTAS PROTEGIDAS (requieren autenticación)
 
 // GET /api/auth/me - Obtener perfil del usuario autenticado
 router.get("/me", authenticate, requireUser, authController.getProfile);
@@ -170,7 +173,7 @@ router.put(
   authController.changePassword
 );
 
-// Rutas administrativas
+// RUTAS ADMINISTRATIVAS
 
 // GET /api/auth/roles - Listar roles disponibles (solo admin)
 router.get("/roles", authenticate, requireAdmin, authController.getRoles);

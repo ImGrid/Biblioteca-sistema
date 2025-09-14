@@ -50,6 +50,36 @@ const USERS_QUERIES = {
   COUNT_USERS: `
         SELECT COUNT(*) as total FROM users WHERE role != 'admin'
     `,
+
+  // NUEVO - Obtener estadísticas de usuario con préstamos y multas
+  GET_USER_STATS: `
+        SELECT 
+          u.id, u.first_name, u.last_name, u.email, u.max_loans,
+          COALESCE(active_loans.count, 0) as active_loans,
+          COALESCE(overdue_loans.count, 0) as overdue_loans,
+          COALESCE(unpaid_fines.count, 0) as unpaid_fines_count,
+          COALESCE(unpaid_fines.amount, 0) as unpaid_fines_amount
+        FROM users u
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) as count 
+          FROM loans 
+          WHERE status = 'active' 
+          GROUP BY user_id
+        ) active_loans ON u.id = active_loans.user_id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) as count 
+          FROM loans 
+          WHERE status = 'overdue' 
+          GROUP BY user_id
+        ) overdue_loans ON u.id = overdue_loans.user_id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) as count, SUM(amount) as amount
+          FROM fines 
+          WHERE is_paid = FALSE 
+          GROUP BY user_id
+        ) unpaid_fines ON u.id = unpaid_fines.user_id
+        WHERE u.id = $1 AND u.is_active = true
+    `,
 };
 
 const BOOKS_QUERIES = {
@@ -127,6 +157,22 @@ const BOOKS_QUERIES = {
         AND ($2 IS NULL OR category_id = $2)
         AND ($3 IS NULL OR available_copies > 0)
     `,
+
+  // NUEVO - Decrementar disponibilidad para préstamo
+  DECREASE_AVAILABILITY: `
+        UPDATE books 
+        SET available_copies = available_copies - 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND available_copies > 0
+        RETURNING available_copies
+    `,
+
+  // NUEVO - Incrementar disponibilidad para devolución
+  INCREASE_AVAILABILITY: `
+        UPDATE books 
+        SET available_copies = available_copies + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING available_copies
+    `,
 };
 
 const AUTHORS_QUERIES = {
@@ -182,6 +228,7 @@ const CATEGORIES_QUERIES = {
     `,
 };
 
+// NUEVO - FASE 5 - Queries de préstamos
 const LOANS_QUERIES = {
   // Crear préstamo
   CREATE_LOAN: `
@@ -201,8 +248,9 @@ const LOANS_QUERIES = {
   PROCESS_RETURN: `
         UPDATE loans 
         SET return_date = CURRENT_DATE, status = 'returned', 
-            notes = $2, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND status = 'active'
+            notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL THEN '\n' ELSE '' END || $2, 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status IN ('active', 'overdue')
         RETURNING id, book_id, user_id
     `,
 
@@ -235,11 +283,65 @@ const LOANS_QUERIES = {
         FROM loans l
         JOIN users u ON l.user_id = u.id
         JOIN books b ON l.book_id = b.id
-        WHERE l.status = 'active' AND l.due_date < CURRENT_DATE
+        WHERE l.status IN ('active', 'overdue') 
+        AND l.due_date < CURRENT_DATE
+        ORDER BY l.due_date ASC
+    `,
+
+  // Obtener préstamo por ID con información completa
+  GET_LOAN_BY_ID: `
+        SELECT l.*, 
+               u.first_name, u.last_name, u.email,
+               b.title, b.isbn,
+               COALESCE(l.extensions, 0) as extensions
+        FROM loans l
+        JOIN users u ON l.user_id = u.id
+        JOIN books b ON l.book_id = b.id
+        WHERE l.id = $1
+    `,
+
+  // Extender préstamo
+  EXTEND_LOAN: `
+        UPDATE loans 
+        SET due_date = due_date + INTERVAL '$1 days',
+            extensions = COALESCE(extensions, 0) + 1,
+            notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL THEN '\n' ELSE '' END || $2,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3 AND status = 'active'
+        RETURNING id, due_date, extensions
+    `,
+
+  // Actualizar estado de préstamo
+  UPDATE_LOAN_STATUS: `
+        UPDATE loans 
+        SET status = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING id, status
+    `,
+
+  // Contar préstamos por estado
+  COUNT_LOANS_BY_STATUS: `
+        SELECT status, COUNT(*) as count
+        FROM loans
+        GROUP BY status
+    `,
+
+  // Obtener préstamos próximos a vencer
+  GET_LOANS_DUE_SOON: `
+        SELECT l.id, l.user_id, l.book_id, l.due_date,
+               u.first_name, u.last_name, u.email,
+               b.title, b.isbn,
+               (l.due_date - CURRENT_DATE) as days_until_due
+        FROM loans l
+        JOIN users u ON l.user_id = u.id
+        JOIN books b ON l.book_id = b.id
+        WHERE l.status = 'active'
+        AND l.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '$1 days'
         ORDER BY l.due_date ASC
     `,
 };
 
+// NUEVO - FASE 5 - Queries de multas
 const FINES_QUERIES = {
   // Crear multa
   CREATE_FINE: `
@@ -275,6 +377,37 @@ const FINES_QUERIES = {
         ORDER BY f.created_at DESC
         LIMIT $2 OFFSET $3
     `,
+
+  // Obtener todas las multas pendientes
+  GET_ALL_UNPAID_FINES: `
+        SELECT f.id, f.loan_id, f.user_id, f.amount, f.reason, f.created_at,
+               u.first_name, u.last_name, u.email,
+               b.title, b.isbn,
+               l.due_date, l.loan_date
+        FROM fines f
+        JOIN users u ON f.user_id = u.id
+        JOIN loans l ON f.loan_id = l.id
+        JOIN books b ON l.book_id = b.id
+        WHERE f.is_paid = false
+        ORDER BY f.created_at DESC
+    `,
+
+  // Verificar si existe multa para un préstamo
+  CHECK_FINE_EXISTS: `
+        SELECT id FROM fines 
+        WHERE loan_id = $1 AND reason LIKE $2
+    `,
+
+  // Obtener estadísticas de multas
+  GET_FINES_STATS: `
+        SELECT 
+          COUNT(*) as total_fines,
+          COUNT(CASE WHEN is_paid = false THEN 1 END) as unpaid_fines,
+          COALESCE(SUM(amount), 0) as total_amount,
+          COALESCE(SUM(CASE WHEN is_paid = false THEN amount ELSE 0 END), 0) as unpaid_amount,
+          COALESCE(AVG(amount), 0) as avg_fine_amount
+        FROM fines
+    `,
 };
 
 const AUDIT_QUERIES = {
@@ -298,6 +431,18 @@ const AUDIT_QUERIES = {
         ORDER BY al.created_at DESC
         LIMIT $3 OFFSET $4
     `,
+
+  // NUEVO - Logs específicos de préstamos
+  GET_LOAN_AUDIT_LOGS: `
+        SELECT al.id, al.action, al.record_id, al.created_at,
+               u.first_name, u.last_name
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        WHERE al.table_name = 'loans'
+        AND ($1 IS NULL OR al.record_id = $1)
+        ORDER BY al.created_at DESC
+        LIMIT $2 OFFSET $3
+    `,
 };
 
 const SYSTEM_QUERIES = {
@@ -318,6 +463,61 @@ const SYSTEM_QUERIES = {
             (SELECT COUNT(*) FROM loans WHERE status = 'active') as active_loans,
             (SELECT COUNT(*) FROM fines WHERE is_paid = false) as unpaid_fines
     `,
+
+  // NUEVO - Estadísticas completas del sistema
+  GET_DASHBOARD_STATS: `
+        SELECT 
+            -- Estadísticas de libros
+            (SELECT COUNT(*) FROM books) as total_books,
+            (SELECT COUNT(*) FROM books WHERE available_copies > 0) as available_books,
+            (SELECT SUM(total_copies) FROM books) as total_copies,
+            (SELECT SUM(available_copies) FROM books) as available_copies,
+            
+            -- Estadísticas de préstamos
+            (SELECT COUNT(*) FROM loans WHERE status = 'active') as active_loans,
+            (SELECT COUNT(*) FROM loans WHERE status = 'overdue') as overdue_loans,
+            (SELECT COUNT(*) FROM loans WHERE due_date = CURRENT_DATE) as due_today,
+            (SELECT COUNT(*) FROM loans WHERE due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 3) as due_soon,
+            
+            -- Estadísticas de usuarios
+            (SELECT COUNT(*) FROM users WHERE role = 'user' AND is_active = true) as active_users,
+            (SELECT COUNT(DISTINCT user_id) FROM fines WHERE is_paid = false) as users_with_fines,
+            
+            -- Estadísticas de multas
+            (SELECT COUNT(*) FROM fines WHERE is_paid = false) as unpaid_fines,
+            (SELECT COALESCE(SUM(amount), 0) FROM fines WHERE is_paid = false) as total_unpaid_amount,
+            
+            -- Estadísticas mensuales
+            (SELECT COUNT(*) FROM loans WHERE loan_date >= date_trunc('month', CURRENT_DATE)) as loans_this_month,
+            (SELECT COUNT(*) FROM loans WHERE return_date >= date_trunc('month', CURRENT_DATE)) as returns_this_month
+    `,
+
+  // Verificar integridad del sistema
+  CHECK_SYSTEM_INTEGRITY: `
+        SELECT 
+            'books_integrity' as check_name,
+            CASE 
+                WHEN (SELECT COUNT(*) FROM books WHERE available_copies > total_copies) > 0 
+                THEN 'FAILED: Available copies exceed total copies'
+                ELSE 'PASSED'
+            END as result
+        UNION ALL
+        SELECT 
+            'loans_integrity' as check_name,
+            CASE 
+                WHEN (SELECT COUNT(*) FROM loans l WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.id = l.user_id)) > 0
+                THEN 'FAILED: Orphaned loans found'
+                ELSE 'PASSED'
+            END as result
+        UNION ALL
+        SELECT 
+            'fines_integrity' as check_name,
+            CASE 
+                WHEN (SELECT COUNT(*) FROM fines f WHERE NOT EXISTS (SELECT 1 FROM loans l WHERE l.id = f.loan_id)) > 0
+                THEN 'FAILED: Orphaned fines found'
+                ELSE 'PASSED'
+            END as result
+    `,
 };
 
 module.exports = {
@@ -325,8 +525,8 @@ module.exports = {
   BOOKS_QUERIES,
   AUTHORS_QUERIES,
   CATEGORIES_QUERIES,
-  LOANS_QUERIES,
-  FINES_QUERIES,
+  LOANS_QUERIES, // NUEVO
+  FINES_QUERIES, // NUEVO
   AUDIT_QUERIES,
   SYSTEM_QUERIES,
 };

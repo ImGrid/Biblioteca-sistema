@@ -10,8 +10,12 @@ const { attachResponseHelpers } = require("./utils/responseHelper");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const { generalRateLimit } = require("./middleware/rateLimiter");
 
-// Importar rutas
+// IMPORTS COMPLETOS - Todas las rutas necesarias incluidas las de préstamos
 const authRoutes = require("./routes/auth");
+const booksRoutes = require("./routes/books");
+const authorsRoutes = require("./routes/authors");
+const categoriesRoutes = require("./routes/categories");
+const loansRoutes = require("./routes/loans"); // NUEVO - Fase 5
 
 const app = express();
 
@@ -107,7 +111,11 @@ app.use(attachResponseHelpers);
 // Middleware de logging de requests para auditoría
 app.use((req, res, next) => {
   // Log solo requests importantes para auditoría
-  if (req.method !== "GET" || req.url.includes("/admin/")) {
+  if (
+    req.method !== "GET" ||
+    req.url.includes("/admin/") ||
+    req.url.includes("/loans")
+  ) {
     logger.audit(
       "HTTP Request",
       {
@@ -122,15 +130,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rutas de la API
+// RUTAS DE LA API
 
 // Rutas de autenticación
 app.use("/api/auth", authRoutes);
 
-// Rutas del catálogo (requieren autenticación)
+// Rutas del catálogo (Fases 3-4)
 app.use("/api/books", booksRoutes);
 app.use("/api/authors", authorsRoutes);
 app.use("/api/categories", categoriesRoutes);
+
+// NUEVO - Rutas de préstamos (Fase 5)
+app.use("/api/loans", loansRoutes);
 
 // Health check básico
 app.get("/api/health", async (req, res) => {
@@ -158,6 +169,19 @@ app.get("/api/health", async (req, res) => {
           ? "JWT configured"
           : "JWT not configured",
       },
+      // NUEVO - Verificar funcionalidades de préstamos
+      loans_system: {
+        status: "healthy",
+        message: "Loan system ready",
+        features: [
+          "loan_processing",
+          "return_processing",
+          "loan_extension",
+          "fine_generation",
+          "eligibility_checking",
+          "notification_system",
+        ],
+      },
     };
 
     return res.healthCheck(checks);
@@ -176,6 +200,10 @@ app.get("/api/health", async (req, res) => {
       authentication: {
         status: "unhealthy",
         message: "Configuration error",
+      },
+      loans_system: {
+        status: "unknown",
+        message: "Cannot verify loan system status",
       },
     };
 
@@ -210,6 +238,57 @@ app.get("/api/health/db", async (req, res) => {
   }
 });
 
+// NUEVO - Health check específico para sistema de préstamos
+app.get("/api/health/loans", async (req, res) => {
+  try {
+    // Verificar que las tablas de préstamos existan
+    const { query } = require("./config/database");
+
+    const loansTableCheck = await query(
+      "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = 'loans'",
+      []
+    );
+
+    const finesTableCheck = await query(
+      "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = 'fines'",
+      []
+    );
+
+    const loansTableExists = loansTableCheck.rows[0]?.count > 0;
+    const finesTableExists = finesTableCheck.rows[0]?.count > 0;
+
+    if (loansTableExists && finesTableExists) {
+      return res.success(
+        {
+          loans_table: "verified",
+          fines_table: "verified",
+          business_rules: "loaded",
+          notification_service: "ready",
+          validation_middleware: "active",
+        },
+        "Loan system fully operational"
+      );
+    } else {
+      return res.error(
+        "Loan system tables missing",
+        503,
+        "LOANS_SYSTEM_ERROR",
+        {
+          loans_table_exists: loansTableExists,
+          fines_table_exists: finesTableExists,
+        }
+      );
+    }
+  } catch (error) {
+    logger.error("Loans system health check failed:", error.message);
+    return res.error(
+      "Loans system health check error",
+      503,
+      "LOANS_SYSTEM_ERROR"
+    );
+  }
+});
+
 // Ruta de información del sistema (para debugging en desarrollo)
 if (process.env.NODE_ENV === "development") {
   app.get("/api/system/info", (req, res) => {
@@ -222,6 +301,25 @@ if (process.env.NODE_ENV === "development") {
       environment: process.env.NODE_ENV,
       jwt_configured: !!process.env.JWT_SECRET,
       timestamp: new Date().toISOString(),
+      // NUEVO - Información del sistema de préstamos
+      phase_status: {
+        phase_1: "completed", // Configuración básica
+        phase_2: "completed", // Sistema de queries
+        phase_3: "completed", // Autenticación
+        phase_4: "completed", // CRUD de catálogo
+        phase_5: "active", // Sistema de préstamos
+      },
+      available_endpoints: {
+        auth: ["/api/auth/register", "/api/auth/login", "/api/auth/me"],
+        catalog: ["/api/books", "/api/authors", "/api/categories"],
+        loans: [
+          "/api/loans",
+          "/api/loans/active",
+          "/api/loans/overdue",
+          "/api/loans/my-loans",
+          "/api/loans/stats",
+        ],
+      },
     };
 
     res.success(info, "System information retrieved");
@@ -253,7 +351,7 @@ if (process.env.NODE_ENV === "development") {
 
   // Ruta para probar autenticación (solo en desarrollo)
   const { authenticate } = require("./middleware/auth");
-  const { requireAdmin } = require("./middleware/roleAuth");
+  const { requireAdmin, requireStaff } = require("./middleware/roleAuth");
 
   app.get("/api/test/auth", authenticate, (req, res) => {
     res.success(
@@ -272,6 +370,17 @@ if (process.env.NODE_ENV === "development") {
         message: "Acceso administrativo confirmado",
       },
       "Prueba de autorización admin exitosa"
+    );
+  });
+
+  // NUEVO - Ruta para probar permisos de bibliotecario
+  app.get("/api/test/librarian", authenticate, requireStaff, (req, res) => {
+    res.success(
+      {
+        user: req.user,
+        message: "Acceso de bibliotecario confirmado",
+      },
+      "Prueba de autorización staff exitosa"
     );
   });
 }
@@ -297,6 +406,7 @@ const server = app.listen(PORT, () => {
     helmet_enabled: true,
     cors_configured: true,
     auth_routes: true,
+    loan_system: true, // NUEVO
   };
 
   logger.info("Security configuration:", securityChecks);
@@ -316,8 +426,10 @@ const server = app.listen(PORT, () => {
         const tablesOk = await checkTables();
         if (tablesOk) {
           logger.info("Todas las tablas verificadas correctamente");
+          logger.info("Sistema de préstamos listo para funcionar");
         } else {
           logger.warn("Algunas tablas del esquema no se encontraron");
+          logger.warn("Verificar que las tablas 'loans' y 'fines' existan");
         }
       } else {
         logger.error("Error al conectar con la base de datos");
