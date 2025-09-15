@@ -16,6 +16,7 @@ const authorsRoutes = require("./routes/authors");
 const categoriesRoutes = require("./routes/categories");
 const loansRoutes = require("./routes/loans");
 const finesRoutes = require("./routes/fines");
+const dashboardRoutes = require("./routes/dashboard"); // NUEVO - Fase 7
 
 const app = express();
 
@@ -115,7 +116,8 @@ app.use((req, res, next) => {
     req.method !== "GET" ||
     req.url.includes("/admin/") ||
     req.url.includes("/loans") ||
-    req.url.includes("/fines")
+    req.url.includes("/fines") ||
+    req.url.includes("/dashboard") // NUEVO - incluir dashboard en auditoría
   ) {
     logger.audit(
       "HTTP Request",
@@ -136,178 +138,13 @@ app.use((req, res, next) => {
 // Rutas de autenticación
 app.use("/api/auth", authRoutes);
 
-// Rutas del catálogo (Fases 3-4)
+// Rutas del catálogo
 app.use("/api/books", booksRoutes);
 app.use("/api/authors", authorsRoutes);
 app.use("/api/categories", categoriesRoutes);
-
-// Rutas de préstamos (Fase 5)
 app.use("/api/loans", loansRoutes);
-
-// NUEVO - Rutas de multas (Fase 6)
 app.use("/api/fines", finesRoutes);
-
-// Health check básico
-app.get("/api/health", async (req, res) => {
-  try {
-    const dbStatus = await testConnection();
-    const tablesExist = await checkTables();
-
-    const checks = {
-      database: {
-        status: dbStatus ? "healthy" : "unhealthy",
-        message: dbStatus ? "Connected" : "Connection failed",
-      },
-      tables: {
-        status: tablesExist ? "healthy" : "warning",
-        message: tablesExist ? "All tables exist" : "Some tables missing",
-      },
-      server: {
-        status: "healthy",
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-      },
-      authentication: {
-        status: process.env.JWT_SECRET ? "healthy" : "unhealthy",
-        message: process.env.JWT_SECRET
-          ? "JWT configured"
-          : "JWT not configured",
-      },
-      // Verificar funcionalidades de préstamos (Fase 5)
-      loans_system: {
-        status: "healthy",
-        message: "Loan system ready",
-        features: [
-          "loan_processing",
-          "return_processing",
-          "loan_extension",
-          "fine_generation",
-          "eligibility_checking",
-          "notification_system",
-        ],
-      },
-      // NUEVO - Verificar funcionalidades de multas (Fase 6)
-      fines_system: {
-        status: "healthy",
-        message: "Fine system ready",
-        features: [
-          "overdue_fine_calculation",
-          "payment_processing",
-          "fine_forgiveness",
-          "financial_reporting",
-          "user_fine_management",
-          "revenue_statistics",
-        ],
-      },
-    };
-
-    return res.healthCheck(checks);
-  } catch (error) {
-    logger.error("Health check failed:", error.message);
-
-    const checks = {
-      database: {
-        status: "unhealthy",
-        message: "Connection error",
-      },
-      server: {
-        status: "healthy",
-        uptime: process.uptime(),
-      },
-      authentication: {
-        status: "unhealthy",
-        message: "Configuration error",
-      },
-      loans_system: {
-        status: "unknown",
-        message: "Cannot verify loan system status",
-      },
-      fines_system: {
-        status: "unknown",
-        message: "Cannot verify fine system status",
-      },
-    };
-
-    return res.healthCheck(checks);
-  }
-});
-
-// Health check de base de datos específico
-app.get("/api/health/db", async (req, res) => {
-  try {
-    const dbStatus = await testConnection();
-    const tablesExist = await checkTables();
-
-    if (dbStatus && tablesExist) {
-      return res.success(
-        {
-          database: "connected",
-          tables: "verified",
-          connection_time: new Date().toISOString(),
-        },
-        "Database connection successful"
-      );
-    } else {
-      return res.error("Database connection failed", 503, "DATABASE_ERROR", {
-        database_connected: dbStatus,
-        tables_verified: tablesExist,
-      });
-    }
-  } catch (error) {
-    logger.error("Database health check failed:", error.message);
-    return res.error("Database connection error", 503, "DATABASE_ERROR");
-  }
-});
-
-app.get("/api/health/loans", async (req, res) => {
-  try {
-    // Verificar que las tablas de préstamos existan
-    const { query } = require("./config/database");
-
-    const loansTableCheck = await query(
-      "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = 'loans'",
-      []
-    );
-
-    const finesTableCheck = await query(
-      "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = 'fines'",
-      []
-    );
-
-    const loansTableExists = loansTableCheck.rows[0]?.count > 0;
-    const finesTableExists = finesTableCheck.rows[0]?.count > 0;
-
-    if (loansTableExists && finesTableExists) {
-      return res.success(
-        {
-          loans_table: "verified",
-          fines_table: "verified",
-          business_rules: "loaded",
-          notification_service: "ready",
-          validation_middleware: "active",
-        },
-        "Loan system fully operational"
-      );
-    } else {
-      return res.error(
-        "Loan system tables missing",
-        503,
-        "LOANS_SYSTEM_ERROR",
-        {
-          loans_table_exists: loansTableExists,
-          fines_table_exists: finesTableExists,
-        }
-      );
-    }
-  } catch (error) {
-    logger.error("Loans system health check failed:", error.message);
-    return res.error(
-      "Loans system health check error",
-      503,
-      "LOANS_SYSTEM_ERROR"
-    );
-  }
-});
+app.use("/api/dashboard", dashboardRoutes);
 
 // Ruta de información del sistema (para debugging en desarrollo)
 if (process.env.NODE_ENV === "development") {
@@ -384,6 +221,26 @@ if (process.env.NODE_ENV === "development") {
       "Prueba de autorización staff exitosa"
     );
   });
+
+  // NUEVO - Ruta para probar dashboard (solo en desarrollo)
+  app.get("/api/test/dashboard", authenticate, (req, res) => {
+    res.success(
+      {
+        user: req.user,
+        dashboard_access: true,
+        available_dashboards: {
+          user:
+            req.user.role === "user" ||
+            req.user.role === "librarian" ||
+            req.user.role === "admin",
+          librarian: req.user.role === "librarian" || req.user.role === "admin",
+          admin: req.user.role === "admin",
+        },
+        message: "Dashboard access test successful",
+      },
+      "Prueba de acceso a dashboard exitosa"
+    );
+  });
 }
 
 // Manejo de rutas no encontradas
@@ -398,6 +255,7 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   logger.info(`Servidor corriendo en puerto ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+  logger.info(`Project Phase: 7 - Complete Library Management System`); // NUEVO
 
   // Verificar configuración de seguridad
   const securityChecks = {
@@ -407,8 +265,9 @@ const server = app.listen(PORT, () => {
     helmet_enabled: true,
     cors_configured: true,
     auth_routes: true,
-    loan_system: true, // Fase 5
-    fine_system: true, // NUEVO - Fase 6
+    loan_system: true,
+    fine_system: true,
+    dashboard_system: true, // NUEVO
   };
 
   logger.info("Security configuration:", securityChecks);

@@ -1,5 +1,3 @@
-// Queries SQL organizadas por entidad con prepared statements
-
 const USERS_QUERIES = {
   // Autenticación
   FIND_BY_EMAIL: `
@@ -51,7 +49,7 @@ const USERS_QUERIES = {
         SELECT COUNT(*) as total FROM users WHERE role != 'admin'
     `,
 
-  // NUEVO - Obtener estadísticas de usuario con préstamos y multas
+  // Obtener estadísticas de usuario con préstamos y multas
   GET_USER_STATS: `
         SELECT 
           u.id, u.first_name, u.last_name, u.email, u.max_loans,
@@ -158,7 +156,7 @@ const BOOKS_QUERIES = {
         AND ($3 IS NULL OR available_copies > 0)
     `,
 
-  // NUEVO - Decrementar disponibilidad para préstamo
+  // Decrementar disponibilidad para préstamo
   DECREASE_AVAILABILITY: `
         UPDATE books 
         SET available_copies = available_copies - 1, updated_at = CURRENT_TIMESTAMP
@@ -166,7 +164,7 @@ const BOOKS_QUERIES = {
         RETURNING available_copies
     `,
 
-  // NUEVO - Incrementar disponibilidad para devolución
+  // Incrementar disponibilidad para devolución
   INCREASE_AVAILABILITY: `
         UPDATE books 
         SET available_copies = available_copies + 1, updated_at = CURRENT_TIMESTAMP
@@ -228,7 +226,7 @@ const CATEGORIES_QUERIES = {
     `,
 };
 
-// NUEVO - FASE 5 - Queries de préstamos
+// Queries de préstamos
 const LOANS_QUERIES = {
   // Crear préstamo
   CREATE_LOAN: `
@@ -341,7 +339,7 @@ const LOANS_QUERIES = {
     `,
 };
 
-// NUEVO - FASE 5 - Queries de multas
+// Queries de multas
 const FINES_QUERIES = {
   // Crear multa
   CREATE_FINE: `
@@ -432,7 +430,7 @@ const AUDIT_QUERIES = {
         LIMIT $3 OFFSET $4
     `,
 
-  // NUEVO - Logs específicos de préstamos
+  // Logs específicos de préstamos
   GET_LOAN_AUDIT_LOGS: `
         SELECT al.id, al.action, al.record_id, al.created_at,
                u.first_name, u.last_name
@@ -464,7 +462,7 @@ const SYSTEM_QUERIES = {
             (SELECT COUNT(*) FROM fines WHERE is_paid = false) as unpaid_fines
     `,
 
-  // NUEVO - Estadísticas completas del sistema
+  // NUEVO - Estadísticas completas del sistema para dashboard
   GET_DASHBOARD_STATS: `
         SELECT 
             -- Estadísticas de libros
@@ -520,13 +518,296 @@ const SYSTEM_QUERIES = {
     `,
 };
 
+// NUEVO - QUERIES ESPECÍFICAS PARA DASHBOARD (FASE 7)
+const DASHBOARD_QUERIES = {
+  // Dashboard de usuario - información personalizada
+  USER_DASHBOARD: {
+    // Préstamos activos del usuario con estado
+    GET_USER_ACTIVE_LOANS: `
+      SELECT l.id, l.loan_date, l.due_date, b.title, b.isbn,
+             STRING_AGG(CONCAT(a.first_name, ' ', a.last_name), ', ') as authors,
+             CASE 
+               WHEN l.due_date < CURRENT_DATE THEN 'overdue'
+               WHEN l.due_date <= CURRENT_DATE + INTERVAL '3 days' THEN 'due_soon'
+               ELSE 'active'
+             END as status,
+             (l.due_date - CURRENT_DATE) as days_until_due
+      FROM loans l
+      JOIN books b ON l.book_id = b.id
+      LEFT JOIN book_authors ba ON b.id = ba.book_id
+      LEFT JOIN authors a ON ba.author_id = a.id
+      WHERE l.user_id = $1 AND l.status IN ('active', 'overdue')
+      GROUP BY l.id, l.loan_date, l.due_date, b.title, b.isbn
+      ORDER BY l.due_date ASC
+    `,
+
+    // Estadísticas de historial del usuario
+    GET_USER_LOAN_HISTORY_STATS: `
+      SELECT 
+        COUNT(*) as total_loans,
+        COUNT(CASE WHEN return_date IS NOT NULL THEN 1 END) as returned_loans,
+        AVG(CASE WHEN return_date IS NOT NULL THEN return_date - loan_date END) as avg_loan_duration
+      FROM loans 
+      WHERE user_id = $1
+    `,
+
+    // Libros favoritos del usuario
+    GET_USER_FAVORITE_BOOKS: `
+      SELECT b.title, b.isbn, COUNT(*) as times_borrowed,
+             STRING_AGG(CONCAT(a.first_name, ' ', a.last_name), ', ') as authors
+      FROM loans l
+      JOIN books b ON l.book_id = b.id
+      LEFT JOIN book_authors ba ON b.id = ba.book_id
+      LEFT JOIN authors a ON ba.author_id = a.id
+      WHERE l.user_id = $1
+      GROUP BY b.id, b.title, b.isbn
+      ORDER BY times_borrowed DESC, b.title
+      LIMIT 5
+    `,
+  },
+
+  // Dashboard de bibliotecario - información operativa
+  LIBRARIAN_DASHBOARD: {
+    // Estadísticas del día
+    GET_TODAY_STATS: `
+      SELECT 
+        COUNT(CASE WHEN l.loan_date = CURRENT_DATE THEN 1 END) as loans_today,
+        COUNT(CASE WHEN l.return_date = CURRENT_DATE THEN 1 END) as returns_today,
+        COUNT(CASE WHEN f.paid_date::date = CURRENT_DATE THEN 1 END) as payments_today
+      FROM loans l
+      FULL OUTER JOIN fines f ON l.id = f.loan_id
+    `,
+
+    // Préstamos que vencen hoy
+    GET_DUE_TODAY: `
+      SELECT l.id, l.due_date, u.first_name, u.last_name, u.email, u.phone,
+             b.title, b.isbn
+      FROM loans l
+      JOIN users u ON l.user_id = u.id
+      JOIN books b ON l.book_id = b.id
+      WHERE l.status = 'active' AND l.due_date = CURRENT_DATE
+      ORDER BY u.last_name, u.first_name
+    `,
+
+    // Préstamos vencidos para seguimiento
+    GET_OVERDUE_FOR_LIBRARIAN: `
+      SELECT l.id, l.due_date, (CURRENT_DATE - l.due_date) as days_overdue,
+             u.first_name, u.last_name, u.email, u.phone,
+             b.title, b.isbn,
+             COALESCE(f.amount, 0) as fine_amount
+      FROM loans l
+      JOIN users u ON l.user_id = u.id
+      JOIN books b ON l.book_id = b.id
+      LEFT JOIN (
+        SELECT loan_id, SUM(amount) as amount
+        FROM fines 
+        WHERE is_paid = false 
+        GROUP BY loan_id
+      ) f ON l.id = f.loan_id
+      WHERE l.status IN ('active', 'overdue') AND l.due_date < CURRENT_DATE
+      ORDER BY l.due_date ASC
+      LIMIT 10
+    `,
+
+    // Estadísticas semanales
+    GET_WEEKLY_STATS: `
+      SELECT 
+        COUNT(CASE WHEN l.loan_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as loans_this_week,
+        COUNT(CASE WHEN l.return_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as returns_this_week,
+        COUNT(CASE WHEN f.created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as fines_this_week,
+        COALESCE(SUM(CASE WHEN f.paid_date >= CURRENT_DATE - INTERVAL '7 days' THEN f.amount END), 0) as revenue_this_week
+      FROM loans l
+      FULL OUTER JOIN fines f ON l.id = f.loan_id
+    `,
+
+    // Libros más prestados esta semana
+    GET_POPULAR_BOOKS_WEEK: `
+      SELECT b.title, b.isbn, COUNT(*) as loan_count,
+             STRING_AGG(CONCAT(a.first_name, ' ', a.last_name), ', ') as authors
+      FROM loans l
+      JOIN books b ON l.book_id = b.id
+      LEFT JOIN book_authors ba ON b.id = ba.book_id
+      LEFT JOIN authors a ON ba.author_id = a.id
+      WHERE l.loan_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY b.id, b.title, b.isbn
+      ORDER BY loan_count DESC
+      LIMIT 5
+    `,
+  },
+
+  // Dashboard de admin - estadísticas completas
+  ADMIN_DASHBOARD: {
+    // Estadísticas generales del sistema
+    GET_SYSTEM_OVERVIEW: `
+      SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'user' AND is_active = true) as total_users,
+        (SELECT COUNT(*) FROM books) as total_books,
+        (SELECT SUM(total_copies) FROM books) as total_copies,
+        (SELECT SUM(available_copies) FROM books) as available_copies,
+        (SELECT COUNT(*) FROM loans WHERE status = 'active') as active_loans,
+        (SELECT COUNT(*) FROM loans WHERE status = 'overdue') as overdue_loans,
+        (SELECT COUNT(*) FROM fines WHERE is_paid = false) as unpaid_fines,
+        (SELECT COALESCE(SUM(amount), 0) FROM fines WHERE is_paid = false) as unpaid_amount
+    `,
+
+    // Estadísticas mensuales
+    GET_MONTHLY_STATS: `
+      SELECT 
+        COUNT(CASE WHEN l.loan_date >= date_trunc('month', CURRENT_DATE) THEN 1 END) as loans_this_month,
+        COUNT(CASE WHEN l.return_date >= date_trunc('month', CURRENT_DATE) THEN 1 END) as returns_this_month,
+        COUNT(CASE WHEN u.created_at >= date_trunc('month', CURRENT_DATE) THEN 1 END) as new_users_this_month,
+        COALESCE(SUM(CASE WHEN f.paid_date >= date_trunc('month', CURRENT_DATE) THEN f.amount END), 0) as revenue_this_month
+      FROM loans l
+      FULL OUTER JOIN users u ON l.user_id = u.id
+      FULL OUTER JOIN fines f ON l.id = f.loan_id
+    `,
+
+    // Top usuarios más activos
+    GET_TOP_USERS: `
+      SELECT u.first_name, u.last_name, u.email,
+             COUNT(l.id) as total_loans,
+             COUNT(CASE WHEN l.status = 'active' THEN 1 END) as active_loans,
+             COALESCE(SUM(f.amount), 0) as total_fines
+      FROM users u
+      LEFT JOIN loans l ON u.id = l.user_id
+      LEFT JOIN fines f ON l.id = f.loan_id
+      WHERE u.role = 'user'
+      GROUP BY u.id, u.first_name, u.last_name, u.email
+      ORDER BY total_loans DESC
+      LIMIT 10
+    `,
+
+    // Libros más populares (histórico)
+    GET_POPULAR_BOOKS_ALL_TIME: `
+      SELECT b.title, b.isbn, COUNT(l.id) as total_loans,
+             b.available_copies, b.total_copies,
+             STRING_AGG(CONCAT(a.first_name, ' ', a.last_name), ', ') as authors
+      FROM books b
+      LEFT JOIN loans l ON b.id = l.book_id
+      LEFT JOIN book_authors ba ON b.id = ba.book_id
+      LEFT JOIN authors a ON ba.author_id = a.id
+      GROUP BY b.id, b.title, b.isbn, b.available_copies, b.total_copies
+      ORDER BY total_loans DESC
+      LIMIT 10
+    `,
+
+    // Categorías más prestadas
+    GET_POPULAR_CATEGORIES: `
+      SELECT c.name, COUNT(l.id) as loan_count,
+             COUNT(DISTINCT b.id) as unique_books
+      FROM categories c
+      LEFT JOIN books b ON c.id = b.category_id
+      LEFT JOIN loans l ON b.id = l.book_id
+      GROUP BY c.id, c.name
+      ORDER BY loan_count DESC
+      LIMIT 5
+    `,
+
+    // Tendencia de préstamos últimos 6 meses
+    GET_LOAN_TRENDS: `
+      SELECT 
+        TO_CHAR(loan_date, 'YYYY-MM') as month,
+        COUNT(*) as loan_count,
+        COUNT(DISTINCT user_id) as unique_users
+      FROM loans 
+      WHERE loan_date >= CURRENT_DATE - INTERVAL '6 months'
+      GROUP BY TO_CHAR(loan_date, 'YYYY-MM')
+      ORDER BY month DESC
+    `,
+
+    // Estadísticas completas de multas
+    GET_COMPLETE_FINE_STATS: `
+      SELECT 
+        COUNT(*) as total_fines,
+        COUNT(CASE WHEN is_paid = true THEN 1 END) as paid_fines,
+        COUNT(CASE WHEN is_paid = false THEN 1 END) as unpaid_fines,
+        COALESCE(SUM(amount), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN is_paid = true THEN amount END), 0) as total_revenue,
+        COALESCE(AVG(amount), 0) as avg_fine_amount
+      FROM fines
+    `,
+  },
+
+  // Reportes detallados
+  REPORTS: {
+    // Reporte mensual detallado
+    GET_MONTHLY_REPORT: `
+      WITH daily_stats AS (
+        SELECT 
+          DATE(f.created_at) as report_date,
+          COUNT(*) as fines_generated,
+          SUM(f.amount) as amount_generated,
+          COUNT(CASE WHEN f.is_paid = true AND DATE(f.paid_date) = DATE(f.created_at) THEN 1 END) as same_day_payments,
+          SUM(CASE WHEN f.is_paid = true AND DATE(f.paid_date) = DATE(f.created_at) THEN f.amount ELSE 0 END) as same_day_revenue
+        FROM fines f
+        WHERE f.created_at >= $1 AND f.created_at < $2
+        GROUP BY DATE(f.created_at)
+      ),
+      monthly_summary AS (
+        SELECT 
+          COUNT(*) as total_fines,
+          SUM(f.amount) as total_generated,
+          COUNT(CASE WHEN f.is_paid = true THEN 1 END) as paid_fines,
+          SUM(CASE WHEN f.is_paid = true THEN f.amount ELSE 0 END) as total_revenue,
+          COUNT(DISTINCT f.user_id) as affected_users,
+          AVG(f.amount) as avg_fine_amount
+        FROM fines f
+        WHERE f.created_at >= $1 AND f.created_at < $2
+      )
+      SELECT 
+        json_build_object(
+          'period', $3 || '/' || $4,
+          'daily_breakdown', (SELECT json_agg(daily_stats) FROM daily_stats),
+          'summary', (SELECT row_to_json(monthly_summary) FROM monthly_summary)
+        ) as report_data
+    `,
+
+    // Actividad de usuarios para reportes
+    GET_USER_ACTIVITY_REPORT: `
+      SELECT u.id, u.first_name, u.last_name, u.email, u.created_at, u.last_login,
+             COALESCE(loan_stats.total_loans, 0) as total_loans,
+             COALESCE(loan_stats.active_loans, 0) as active_loans,
+             COALESCE(loan_stats.overdue_loans, 0) as overdue_loans,
+             COALESCE(fine_stats.total_fines, 0) as total_fines,
+             COALESCE(fine_stats.unpaid_fines, 0) as unpaid_fines,
+             COALESCE(fine_stats.total_fine_amount, 0) as total_fine_amount,
+             CASE 
+               WHEN loan_stats.active_loans > 0 THEN 'active'
+               WHEN fine_stats.unpaid_fines > 0 THEN 'has_fines'
+               WHEN loan_stats.total_loans > 0 THEN 'inactive'
+               ELSE 'never_borrowed'
+             END as status
+      FROM users u
+      LEFT JOIN (
+        SELECT user_id, 
+               COUNT(*) as total_loans,
+               COUNT(CASE WHEN status IN ('active', 'overdue') THEN 1 END) as active_loans,
+               COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue_loans
+        FROM loans 
+        GROUP BY user_id
+      ) loan_stats ON u.id = loan_stats.user_id
+      LEFT JOIN (
+        SELECT user_id,
+               COUNT(*) as total_fines,
+               COUNT(CASE WHEN is_paid = false THEN 1 END) as unpaid_fines,
+               COALESCE(SUM(CASE WHEN is_paid = false THEN amount END), 0) as total_fine_amount
+        FROM fines
+        GROUP BY user_id
+      ) fine_stats ON u.id = fine_stats.user_id
+      WHERE u.role = 'user'
+      ORDER BY loan_stats.total_loans DESC NULLS LAST
+    `,
+  },
+};
+
 module.exports = {
   USERS_QUERIES,
   BOOKS_QUERIES,
   AUTHORS_QUERIES,
   CATEGORIES_QUERIES,
-  LOANS_QUERIES, // NUEVO
-  FINES_QUERIES, // NUEVO
+  LOANS_QUERIES,
+  FINES_QUERIES,
   AUDIT_QUERIES,
   SYSTEM_QUERIES,
+  DASHBOARD_QUERIES,
 };

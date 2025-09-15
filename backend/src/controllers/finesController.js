@@ -458,11 +458,11 @@ const forgiveFine = asyncHandler(async (req, res) => {
   try {
     // Verificar que la multa existe y no está pagada
     const fineInfo = await executeQuerySingle(
-      `SELECT f.*, u.first_name, u.last_name, l.loan_id
-       FROM fines f
-       JOIN users u ON f.user_id = u.id
-       JOIN loans l ON f.loan_id = l.id
-       WHERE f.id = $1`,
+      `SELECT f.*, u.first_name, u.last_name, l.id as loan_id
+      FROM fines f
+      JOIN users u ON f.user_id = u.id
+      JOIN loans l ON f.loan_id = l.id
+      WHERE f.id = $1`,
       [fineIdValidation.value],
       "Get fine info for forgiveness"
     );
