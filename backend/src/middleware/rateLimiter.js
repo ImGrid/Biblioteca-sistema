@@ -18,21 +18,21 @@ const RATE_LIMIT_CONFIGS = {
   // Rate limiting general
   general: {
     windowMs: 15 * 60 * 1000, // 15 minutos
-    maxRequests: 100,
+    maxRequests: 10000,
     message: "Demasiadas solicitudes desde esta IP, intenta más tarde",
   },
 
   // Rate limiting para autenticación (más restrictivo)
   auth: {
     windowMs: 15 * 60 * 1000, // 15 minutos
-    maxRequests: 5,
+    maxRequests: 15,
     message: "Demasiados intentos de autenticación, intenta más tarde",
   },
 
   // Rate limiting para creación de recursos
   create: {
     windowMs: 60 * 1000, // 1 minuto
-    maxRequests: 10,
+    maxRequests: 10000,
     message: "Demasiadas creaciones de recursos, intenta más tarde",
   },
 
@@ -46,7 +46,7 @@ const RATE_LIMIT_CONFIGS = {
   // Rate limiting para reportes (más restrictivo)
   reports: {
     windowMs: 5 * 60 * 1000, // 5 minutos
-    maxRequests: 2,
+    maxRequests: 10,
     message: "Límite de reportes alcanzado, intenta más tarde",
   },
 };

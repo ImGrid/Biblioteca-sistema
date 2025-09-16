@@ -20,17 +20,17 @@ import BooksManagementPage from "../pages/books/BooksManagementPage";
 
 // Loans
 import MyLoansPage from "../pages/loans/MyLoansPage";
-import LoansManagementPage from "../pages/loans/LoansManagementPage";
+import { LoansManagementPage } from "../pages/loans/LoansManagementPage";
 
 // Fines
 import MyFinesPage from "../pages/fines/MyFinesPage";
-import FinesManagementPage from "../pages/fines/FinesManagementPage";
+import { FinesManagementPage } from "../pages/fines/FinesManagementPage";
 
 // Admin Pages
-import AuthorsManagementPage from "../pages/authors/AuthorsManagementPage";
-import CategoriesManagementPage from "../pages/categories/CategoriesManagementPage";
-import UsersManagementPage from "../pages/users/UsersManagementPage";
-import ReportsPage from "../pages/reports/ReportsPage";
+import { AuthorsManagementPage } from "../pages/authors/AuthorsManagementPage";
+import { CategoriesManagementPage } from "../pages/categories/CategoriesManagementPage";
+import { UsersManagementPage } from "../pages/users/UsersManagementPage";
+import { ReportsPage } from "../pages/reports/ReportsPage";
 
 const AppRouter = () => {
   return (

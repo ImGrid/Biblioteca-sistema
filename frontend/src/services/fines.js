@@ -4,7 +4,18 @@ export const finesService = {
   // GET /api/fines/my-fines (user)
   getMyFines: async (params = {}) => {
     const response = await api.get("/fines/my-fines", { params });
-    return response.data;
+    const apiResponse = response.data;
+
+    if (apiResponse.success && apiResponse.data.fines) {
+      // Adapt the structure for the generic hook
+      return {
+        success: true,
+        data: apiResponse.data.fines, // Extract the array
+        pagination: apiResponse.data.pagination, // Pass pagination along
+      };
+    }
+    
+    return apiResponse; // Return original response if not successful or structure is unexpected
   },
 
   // GET /api/fines/my-history (user)

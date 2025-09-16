@@ -159,7 +159,7 @@ const MyLoansPage = () => {
     ).length;
     const returned = loans.filter((loan) => loan.status === "returned").length;
     const totalFines = loans.reduce(
-      (sum, loan) => sum + (loan.pending_fines || 0),
+      (sum, loan) => sum + parseFloat(loan.pending_fines || 0),
       0
     );
 
