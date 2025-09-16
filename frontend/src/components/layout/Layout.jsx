@@ -58,8 +58,8 @@ const Layout = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
+        <div className="px-4 mx-auto max-w-7xl">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <Link to="/dashboard" className="text-xl font-bold text-gray-900">
                 Sistema Biblioteca
@@ -68,7 +68,7 @@ const Layout = () => {
 
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                {user?.first_name} {user?.last_name} ({user?.role})
+                {user?.first_name} {user?.last_name}
               </span>
               <Link to="/profile">
                 <Button size="sm" variant="outline">
@@ -83,12 +83,12 @@ const Layout = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="px-4 py-6 mx-auto max-w-7xl">
         <div className="flex">
           {/* Sidebar */}
           <nav className="w-64 mr-8">
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
+            <div className="p-4 bg-white border rounded-lg">
+              <h3 className="mb-3 text-sm font-medium text-gray-900">
                 Navegación
               </h3>
               <ul className="space-y-1">

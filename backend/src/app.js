@@ -16,7 +16,8 @@ const authorsRoutes = require("./routes/authors");
 const categoriesRoutes = require("./routes/categories");
 const loansRoutes = require("./routes/loans");
 const finesRoutes = require("./routes/fines");
-const dashboardRoutes = require("./routes/dashboard"); // NUEVO - Fase 7
+const dashboardRoutes = require("./routes/dashboard");
+const usersRoutes = require("./routes/users"); // NUEVO - Rutas de usuarios
 
 const app = express();
 
@@ -117,7 +118,8 @@ app.use((req, res, next) => {
     req.url.includes("/admin/") ||
     req.url.includes("/loans") ||
     req.url.includes("/fines") ||
-    req.url.includes("/dashboard") // NUEVO - incluir dashboard en auditoría
+    req.url.includes("/dashboard") ||
+    req.url.includes("/users") // NUEVO - incluir rutas de usuarios en auditoría
   ) {
     logger.audit(
       "HTTP Request",
@@ -145,6 +147,7 @@ app.use("/api/categories", categoriesRoutes);
 app.use("/api/loans", loansRoutes);
 app.use("/api/fines", finesRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/users", usersRoutes); // NUEVO - Rutas de gestión de usuarios
 
 // Ruta de información del sistema (para debugging en desarrollo)
 if (process.env.NODE_ENV === "development") {
@@ -222,7 +225,7 @@ if (process.env.NODE_ENV === "development") {
     );
   });
 
-  // NUEVO - Ruta para probar dashboard (solo en desarrollo)
+  // Ruta para probar dashboard (solo en desarrollo)
   app.get("/api/test/dashboard", authenticate, (req, res) => {
     res.success(
       {
@@ -241,6 +244,25 @@ if (process.env.NODE_ENV === "development") {
       "Prueba de acceso a dashboard exitosa"
     );
   });
+
+  // NUEVO - Ruta para probar gestión de usuarios (solo en desarrollo)
+  app.get("/api/test/users", authenticate, requireStaff, (req, res) => {
+    res.success(
+      {
+        user: req.user,
+        users_access: true,
+        available_operations: {
+          search_users:
+            req.user.role === "librarian" || req.user.role === "admin",
+          manage_users: req.user.role === "admin",
+          view_user_stats:
+            req.user.role === "librarian" || req.user.role === "admin",
+        },
+        message: "Users management access test successful",
+      },
+      "Prueba de acceso a gestión de usuarios exitosa"
+    );
+  });
 }
 
 // Manejo de rutas no encontradas
@@ -255,7 +277,9 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   logger.info(`Servidor corriendo en puerto ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
-  logger.info(`Project Phase: 7 - Complete Library Management System`); // NUEVO
+  logger.info(
+    `Project Phase: 7+ - Complete Library Management System with User Management`
+  ); // ACTUALIZADO
 
   // Verificar configuración de seguridad
   const securityChecks = {
@@ -267,7 +291,8 @@ const server = app.listen(PORT, () => {
     auth_routes: true,
     loan_system: true,
     fine_system: true,
-    dashboard_system: true, // NUEVO
+    dashboard_system: true,
+    user_management: true, // NUEVO
   };
 
   logger.info("Security configuration:", securityChecks);
