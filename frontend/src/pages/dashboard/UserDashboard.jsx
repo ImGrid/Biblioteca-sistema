@@ -21,27 +21,19 @@ import {
   Search,
   Calendar,
   User,
-  Target,
   TrendingUp,
   RefreshCw,
 } from "lucide-react";
 
-const StatCard = ({
-  title,
-  value,
-  description,
-  color = "blue",
-  IconComponent,
-  link,
-}) => (
+const StatCard = ({ title, value, description, IconComponent, link }) => (
   <div className="p-6 transition-shadow bg-white border rounded-lg shadow-sm hover:shadow-md">
     <div className="flex items-center">
       {IconComponent && (
-        <IconComponent className={`w-8 h-8 mr-3 text-${color}-500`} />
+        <IconComponent className="w-6 h-6 mr-3 text-gray-600" />
       )}
       <div className="flex-1">
-        <div className={`text-3xl font-bold text-${color}-600`}>{value}</div>
-        <div className="mt-1 text-sm font-medium text-gray-800">{title}</div>
+        <div className="text-3xl font-bold text-gray-900">{value}</div>
+        <div className="mt-1 text-sm font-medium text-gray-700">{title}</div>
         {description && (
           <p className="mt-1 text-xs text-gray-500">{description}</p>
         )}
@@ -51,7 +43,7 @@ const StatCard = ({
       <div className="mt-4">
         <Link
           to={link}
-          className={`text-sm text-${color}-600 hover:text-${color}-800 font-medium`}
+          className="text-sm font-medium text-blue-600 hover:text-blue-800"
         >
           Ver detalles →
         </Link>
@@ -86,7 +78,13 @@ const LoanCard = ({ loan }) => {
               Vence: {formatDate(loan.due_date)}
             </span>
             <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${status.badge}`}
+              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                status.text.includes("Vencido")
+                  ? "bg-red-100 text-red-800"
+                  : status.text.includes("hoy") || daysLeft <= 3
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-blue-100 text-blue-800"
+              }`}
             >
               {status.text}
             </span>
@@ -99,13 +97,13 @@ const LoanCard = ({ loan }) => {
 
 const BookCard = ({ book, rank }) => (
   <div className="flex items-center p-3 rounded-lg bg-gray-50">
-    <div className="mr-3 text-lg font-bold text-blue-600">#{rank}</div>
+    <div className="mr-3 text-lg font-bold text-gray-600">#{rank}</div>
     <div className="flex-1">
       <div className="text-sm font-medium text-gray-900">{book.title}</div>
       {book.authors && (
         <div className="text-xs text-gray-500">{book.authors}</div>
       )}
-      <div className="flex items-center mt-1 text-xs text-blue-600">
+      <div className="flex items-center mt-1 text-xs text-gray-600">
         <RefreshCw className="w-3 h-3 mr-1" />
         {book.times_borrowed}{" "}
         {book.times_borrowed === 1 ? "préstamo" : "préstamos"}
@@ -164,8 +162,8 @@ const UserDashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center text-3xl font-bold text-gray-900">
-            <User className="w-8 h-8 mr-3 text-blue-600" />
-            ¡Hola, {user.first_name || "Usuario"}!
+            <User className="w-8 h-8 mr-3 text-gray-600" />
+            Hola, {user.first_name || "Usuario"}
           </h1>
           <p className="mt-1 text-gray-600">
             Miembro desde {formatDate(user.created_at)} • Último acceso:{" "}
@@ -185,7 +183,7 @@ const UserDashboard = () => {
           {overdueLoans.length > 0 && (
             <div className="p-4 border border-red-200 rounded-lg bg-red-50">
               <div className="flex items-start">
-                <div className="mr-3 text-xl text-red-500">⚠️</div>
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-3 mt-0.5" />
                 <div>
                   <h3 className="font-medium text-red-800">
                     Tienes {overdueLoans.length} préstamo
@@ -209,7 +207,7 @@ const UserDashboard = () => {
           {dueSoonLoans.length > 0 && overdueLoans.length === 0 && (
             <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50">
               <div className="flex items-start">
-                <div className="mr-3 text-xl text-yellow-600">⏰</div>
+                <Clock className="w-5 h-5 text-yellow-600 mr-3 mt-0.5" />
                 <div>
                   <h3 className="font-medium text-yellow-800">
                     {dueSoonLoans.length} préstamo
@@ -228,7 +226,7 @@ const UserDashboard = () => {
             <div className="p-4 border border-orange-200 rounded-lg bg-orange-50">
               <div className="flex items-start justify-between">
                 <div className="flex items-start">
-                  <div className="mr-3 text-xl text-orange-600">💰</div>
+                  <DollarSign className="w-5 h-5 text-orange-600 mr-3 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-orange-800">
                       Multas pendientes: {formatCurrency(fines.total_amount)}
@@ -260,8 +258,7 @@ const UserDashboard = () => {
             title="Préstamos Activos"
             value={current_loans.count || 0}
             description={`Máximo ${user.max_loans || 3} permitidos`}
-            color="blue"
-            icon="📚"
+            IconComponent={BookOpen}
             link="/my-loans"
           />
 
@@ -269,10 +266,11 @@ const UserDashboard = () => {
             title="Libros Vencidos"
             value={current_loans.overdue_count || 0}
             description={
-              overdueLoans.length > 0 ? "¡Requiere atención!" : "¡Excelente!"
+              overdueLoans.length > 0 ? "Requiere atención" : "Excelente"
             }
-            color={overdueLoans.length > 0 ? "red" : "green"}
-            icon={overdueLoans.length > 0 ? "⚠️" : "✅"}
+            IconComponent={
+              overdueLoans.length > 0 ? AlertTriangle : CheckCircle
+            }
             link="/my-loans?status=overdue"
           />
 
@@ -282,8 +280,7 @@ const UserDashboard = () => {
             description={`${fines.pending_count || 0} multa${
               fines.pending_count === 1 ? "" : "s"
             }`}
-            color={fines.pending_count > 0 ? "orange" : "green"}
-            icon="💸"
+            IconComponent={DollarSign}
             link="/my-fines"
           />
 
@@ -293,8 +290,7 @@ const UserDashboard = () => {
             description={`${
               statistics.returned_loans || 0
             } devueltos • Promedio ${statistics.avg_loan_days || 0} días`}
-            color="purple"
-            icon="📊"
+            IconComponent={BarChart3}
             link="/my-loans"
           />
         </div>
@@ -334,7 +330,7 @@ const UserDashboard = () => {
       {favorite_books.length > 0 && (
         <div>
           <h2 className="mb-4 text-xl font-semibold text-gray-900">
-            📖 Mis Libros Favoritos
+            Mis Libros Favoritos
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {favorite_books.slice(0, 6).map((book, index) => (
@@ -352,92 +348,11 @@ const UserDashboard = () => {
         </div>
       )}
 
-      {/* Recomendaciones */}
-      <div className="p-6 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">
-          💡 Recomendaciones
-        </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {recommendations.can_borrow_more && !recommendations.has_overdue && (
-            <div className="flex items-start space-x-3">
-              <div className="text-xl text-green-600">✅</div>
-              <div>
-                <h4 className="font-medium text-green-800">
-                  ¡Puedes pedir más libros!
-                </h4>
-                <p className="text-sm text-green-700">
-                  Tienes {(user.max_loans || 3) - (current_loans.count || 0)}{" "}
-                  préstamo
-                  {(user.max_loans || 3) - (current_loans.count || 0) === 1
-                    ? ""
-                    : "s"}{" "}
-                  disponible
-                  {(user.max_loans || 3) - (current_loans.count || 0) === 1
-                    ? ""
-                    : "s"}
-                </p>
-                <Link
-                  to="/books"
-                  className="text-sm font-medium text-green-800 hover:underline"
-                >
-                  Explorar catálogo →
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {recommendations.has_overdue && (
-            <div className="flex items-start space-x-3">
-              <div className="text-xl text-red-600">⚠️</div>
-              <div>
-                <h4 className="font-medium text-red-800">
-                  Devuelve libros vencidos
-                </h4>
-                <p className="text-sm text-red-700">
-                  No podrás pedir nuevos libros hasta devolver los vencidos
-                </p>
-                <Link
-                  to="/my-loans?status=overdue"
-                  className="text-sm font-medium text-red-800 hover:underline"
-                >
-                  Ver vencidos →
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {statistics.avg_loan_days > 10 && (
-            <div className="flex items-start space-x-3">
-              <div className="text-xl text-blue-600">📈</div>
-              <div>
-                <h4 className="font-medium text-blue-800">Excelente lector</h4>
-                <p className="text-sm text-blue-700">
-                  Mantienes los libros un promedio de {statistics.avg_loan_days}{" "}
-                  días
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-start space-x-3">
-            <div className="text-xl text-purple-600">🎯</div>
-            <div>
-              <h4 className="font-medium text-purple-800">¿Necesitas ayuda?</h4>
-              <p className="text-sm text-purple-700">
-                Contacta a un bibliotecario para renovaciones
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Footer stats */}
       {activeLoans.length === 0 && fines.pending_count === 0 && (
         <div className="py-8 text-center border border-green-200 rounded-lg bg-green-50">
-          <div className="mb-2 text-4xl">🎉</div>
-          <h3 className="text-lg font-semibold text-green-800">
-            ¡Todo al día!
-          </h3>
+          <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-600" />
+          <h3 className="text-lg font-semibold text-green-800">Todo al día</h3>
           <p className="mt-1 text-green-700">
             No tienes préstamos pendientes ni multas
           </p>

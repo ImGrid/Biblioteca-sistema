@@ -40,7 +40,11 @@ export const LoansManagementPage = () => {
   const handleReturnLoan = async (loanId) => {
     setIsReturning(loanId);
     try {
-      const result = await loansService.returnLoan(loanId);
+      // ✅ CORREGIDO: Agregar segundo parámetro con datos mínimos requeridos
+      const result = await loansService.returnLoan(loanId, {
+        notes: "",
+        condition: "good",
+      });
       if (result.success) {
         success("Devolución registrada exitosamente.");
         refresh();
@@ -93,10 +97,12 @@ export const LoansManagementPage = () => {
       render: (_, record) => (
         <div>
           <div className="text-sm">
-            <span className="font-medium">Préstamo:</span> {formatDate(record.loan_date)}
+            <span className="font-medium">Préstamo:</span>{" "}
+            {formatDate(record.loan_date)}
           </div>
           <div className="text-sm">
-            <span className="font-medium">Vence:</span> {formatDate(record.due_date)}
+            <span className="font-medium">Vence:</span>{" "}
+            {formatDate(record.due_date)}
           </div>
         </div>
       ),
@@ -106,7 +112,7 @@ export const LoansManagementPage = () => {
       title: "Estado",
       render: (_, record) => {
         const days = daysUntil(record.due_date);
-        const isOverdue = record.status === 'overdue' || days < 0;
+        const isOverdue = record.status === "overdue" || days < 0;
         const statusClass = isOverdue
           ? "bg-red-100 text-red-800"
           : days <= 3
@@ -120,7 +126,8 @@ export const LoansManagementPage = () => {
 
         return (
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}
+          >
             {statusText}
           </span>
         );
@@ -139,7 +146,7 @@ export const LoansManagementPage = () => {
           >
             {isReturning === record.id ? "..." : "Devolución"}
           </Button>
-          {filter === 'active' && (
+          {filter === "active" && (
             <Button
               size="sm"
               variant="outline"
@@ -156,26 +163,30 @@ export const LoansManagementPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Gestión de Préstamos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Gestión de Préstamos
+        </h1>
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
           Crear Nuevo Préstamo
         </Button>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white p-4 rounded-lg border">
+      <div className="p-4 bg-white border rounded-lg">
         <div className="flex items-center space-x-2">
-            <Button
-                variant={filter === 'active' ? 'primary' : 'outline'}
-                onClick={() => setFilter('active')}>
-                Activos
-            </Button>
-            <Button
-                variant={filter === 'overdue' ? 'primary' : 'outline'}
-                onClick={() => setFilter('overdue')}>
-                Vencidos
-            </Button>
+          <Button
+            variant={filter === "active" ? "primary" : "outline"}
+            onClick={() => setFilter("active")}
+          >
+            Activos
+          </Button>
+          <Button
+            variant={filter === "overdue" ? "primary" : "outline"}
+            onClick={() => setFilter("overdue")}
+          >
+            Vencidos
+          </Button>
         </div>
       </div>
 
@@ -196,18 +207,18 @@ export const LoansManagementPage = () => {
       )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <CreateLoanForm 
-          onSuccess={handleLoanCreated} 
-          onClose={() => setIsModalOpen(false)} 
+        <CreateLoanForm
+          onSuccess={handleLoanCreated}
+          onClose={() => setIsModalOpen(false)}
         />
       </Modal>
 
       {loanToExtend && (
         <Modal isOpen={!!loanToExtend} onClose={() => setLoanToExtend(null)}>
-          <ExtendLoanForm 
+          <ExtendLoanForm
             loan={loanToExtend}
-            onSuccess={handleExtensionSuccess} 
-            onClose={() => setLoanToExtend(null)} 
+            onSuccess={handleExtensionSuccess}
+            onClose={() => setLoanToExtend(null)}
           />
         </Modal>
       )}

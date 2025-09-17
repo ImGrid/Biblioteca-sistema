@@ -61,18 +61,18 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md space-y-8">
         <div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">
+          <h2 className="text-3xl font-bold text-center text-gray-900">
             Sistema Biblioteca
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-sm text-center text-gray-600">
             Ingresa a tu cuenta
           </p>
         </div>
 
-        <div className="bg-white p-8 rounded-lg border">
+        <div className="p-8 bg-white border rounded-lg">
           {generalError && (
             <div className="mb-4">
               <ErrorMessage message={generalError} />

@@ -10,43 +10,58 @@ import {
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import Button from "../../components/common/Button";
+import {
+  BookOpen,
+  CheckCircle,
+  DollarSign,
+  Clock,
+  AlertTriangle,
+  Users,
+  TrendingUp,
+  FileText,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Search,
+  RotateCcw,
+  CreditCard,
+  Plus,
+} from "lucide-react";
 
 const StatCard = ({
   title,
   value,
   description,
-  color = "blue",
-  icon,
+  icon: Icon,
   link,
   urgent = false,
 }) => (
   <div
     className={`bg-white p-6 rounded-lg border shadow-sm hover:shadow-md transition-all ${
-      urgent ? "ring-2 ring-red-500 bg-red-50" : ""
+      urgent ? "border-red-200 bg-red-50" : ""
     }`}
   >
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        {icon && (
-          <div
-            className={`text-3xl mr-4 ${
-              urgent ? "text-red-600" : `text-${color}-600`
+        {Icon && (
+          <Icon
+            className={`w-6 h-6 mr-4 ${
+              urgent ? "text-red-600" : "text-gray-600"
             }`}
-          >
-            {icon}
-          </div>
+          />
         )}
         <div>
           <div
             className={`text-3xl font-bold ${
-              urgent ? "text-red-700" : `text-${color}-600`
+              urgent ? "text-red-700" : "text-gray-900"
             }`}
           >
             {value}
           </div>
           <div
             className={`text-sm font-medium ${
-              urgent ? "text-red-800" : "text-gray-800"
+              urgent ? "text-red-800" : "text-gray-700"
             } mt-1`}
           >
             {title}
@@ -62,7 +77,7 @@ const StatCard = ({
           )}
         </div>
       </div>
-      {urgent && <div className="text-red-500 animate-pulse">⚠️</div>}
+      {urgent && <AlertTriangle className="w-5 h-5 text-red-500" />}
     </div>
     {link && (
       <div className="mt-4">
@@ -71,10 +86,10 @@ const StatCard = ({
           className={`text-sm font-medium hover:underline ${
             urgent
               ? "text-red-700 hover:text-red-800"
-              : `text-${color}-600 hover:text-${color}-800`
+              : "text-blue-600 hover:text-blue-800"
           }`}
         >
-          {urgent ? "¡Revisar ahora!" : "Ver detalles"} →
+          {urgent ? "Revisar ahora" : "Ver detalles"} →
         </Link>
       </div>
     )}
@@ -99,30 +114,39 @@ const UrgentLoanCard = ({ loan, type = "overdue" }) => (
         </div>
 
         <div className="mt-2 text-sm">
-          <div className="font-medium text-gray-800">
-            👤 {loan.first_name} {loan.last_name}
+          <div className="flex items-center font-medium text-gray-800">
+            <Users className="w-4 h-4 mr-1" />
+            {loan.first_name} {loan.last_name}
           </div>
-          <div className="text-gray-600">📧 {loan.email}</div>
+          <div className="flex items-center mt-1 text-gray-600">
+            <Mail className="w-4 h-4 mr-1" />
+            {loan.email}
+          </div>
           {loan.phone && (
-            <div className="text-gray-600">📱 {formatPhone(loan.phone)}</div>
+            <div className="flex items-center mt-1 text-gray-600">
+              <Phone className="w-4 h-4 mr-1" />
+              {formatPhone(loan.phone)}
+            </div>
           )}
         </div>
 
         <div className="flex items-center mt-3 space-x-4 text-sm">
           <span
-            className={
+            className={`flex items-center ${
               type === "overdue"
                 ? "text-red-600 font-medium"
                 : "text-yellow-600 font-medium"
-            }
+            }`}
           >
+            <Calendar className="w-4 h-4 mr-1" />
             {type === "overdue"
-              ? `📅 Vencido hace ${loan.days_overdue} días`
-              : `📅 Vence: ${formatDate(loan.due_date)}`}
+              ? `Vencido hace ${loan.days_overdue} días`
+              : `Vence: ${formatDate(loan.due_date)}`}
           </span>
           {loan.fine_amount > 0 && (
-            <span className="font-medium text-orange-600">
-              💰 Multa: {formatCurrency(loan.fine_amount)}
+            <span className="flex items-center font-medium text-orange-600">
+              <DollarSign className="w-4 h-4 mr-1" />
+              Multa: {formatCurrency(loan.fine_amount)}
             </span>
           )}
         </div>
@@ -143,11 +167,12 @@ const PendingFineCard = ({ fine }) => (
         </div>
 
         <div className="mt-2 text-sm">
-          <div className="font-medium text-gray-800">
-            👤 {fine.first_name} {fine.last_name}
+          <div className="flex items-center font-medium text-gray-800">
+            <Users className="w-4 h-4 mr-1" />
+            {fine.first_name} {fine.last_name}
           </div>
           <div className="text-gray-600">{fine.email}</div>
-          <div className="mt-1 text-orange-700">📋 {fine.reason}</div>
+          <div className="mt-1 text-orange-700">{fine.reason}</div>
         </div>
 
         <div className="mt-2 text-xs text-gray-500">
@@ -159,8 +184,8 @@ const PendingFineCard = ({ fine }) => (
 );
 
 const PopularBookCard = ({ book, rank }) => (
-  <div className="flex items-center p-3 border border-purple-200 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50">
-    <div className="mr-3 text-lg font-bold text-purple-600">#{rank}</div>
+  <div className="flex items-center p-3 border rounded-lg bg-gray-50">
+    <div className="mr-3 text-lg font-bold text-gray-600">#{rank}</div>
     <div className="flex-1">
       <div className="text-sm font-semibold text-gray-900">{book.title}</div>
       {book.authors && (
@@ -170,7 +195,7 @@ const PopularBookCard = ({ book, rank }) => (
         <div className="text-xs text-gray-500">ISBN: {book.isbn}</div>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className="px-2 py-1 text-xs font-medium text-purple-800 bg-purple-100 rounded-full">
+        <span className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-200 rounded-full">
           {book.loan_count} préstamos esta semana
         </span>
       </div>
@@ -225,17 +250,17 @@ const LibrarianDashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            📚 Centro de Control - Biblioteca
+            Centro de Control - Biblioteca
           </h1>
           <p className="mt-1 text-gray-600">
             {formatDate(new Date())} •
             {hasUrgentTasks ? (
               <span className="ml-2 font-medium text-red-600">
-                ⚠️ {notifications.pending_actions || 0} acciones pendientes
+                {notifications.pending_actions || 0} acciones pendientes
               </span>
             ) : (
               <span className="ml-2 font-medium text-green-600">
-                ✅ Todo bajo control
+                Todo bajo control
               </span>
             )}
           </p>
@@ -258,10 +283,10 @@ const LibrarianDashboard = () => {
       {hasUrgentTasks && (
         <div className="p-4 border-l-4 border-red-500 rounded-lg bg-red-50">
           <div className="flex items-center">
-            <div className="mr-3 text-2xl text-red-500">🚨</div>
+            <AlertTriangle className="w-6 h-6 mr-3 text-red-500" />
             <div>
               <h3 className="text-lg font-semibold text-red-800">
-                ¡Atención requerida!
+                Atención requerida
               </h3>
               <p className="mt-1 text-red-700">
                 {urgent_tasks.overdue_count > 0 &&
@@ -280,15 +305,14 @@ const LibrarianDashboard = () => {
       {/* Estadísticas del día */}
       <div>
         <h2 className="mb-4 text-xl font-semibold text-gray-900">
-          📊 Actividad de Hoy
+          Actividad de Hoy
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Préstamos Hoy"
             value={today.loans || 0}
             description="Libros prestados en las últimas 24h"
-            color="blue"
-            icon="📚"
+            icon={BookOpen}
             link="/loans"
           />
 
@@ -296,8 +320,7 @@ const LibrarianDashboard = () => {
             title="Devoluciones Hoy"
             value={today.returns || 0}
             description="Libros devueltos en las últimas 24h"
-            color="green"
-            icon="✅"
+            icon={CheckCircle}
             link="/loans"
           />
 
@@ -305,8 +328,7 @@ const LibrarianDashboard = () => {
             title="Pagos Procesados"
             value={today.payments || 0}
             description="Multas cobradas hoy"
-            color="purple"
-            icon="💰"
+            icon={DollarSign}
             link="/fines"
           />
 
@@ -314,8 +336,7 @@ const LibrarianDashboard = () => {
             title="Vencen Hoy"
             value={notifications.due_today_count || 0}
             description="Préstamos que vencen hoy"
-            color="yellow"
-            icon="⏰"
+            icon={Clock}
             link="/loans?filter=due_today"
             urgent={notifications.due_today_count > 0}
           />
@@ -326,15 +347,14 @@ const LibrarianDashboard = () => {
       {hasUrgentTasks && (
         <div>
           <h2 className="mb-4 text-xl font-semibold text-gray-900">
-            🚨 Tareas Urgentes
+            Tareas Urgentes
           </h2>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <StatCard
               title="Préstamos Vencidos"
               value={urgent_tasks.overdue_count || 0}
               description="Requieren seguimiento inmediato"
-              color="red"
-              icon="⚠️"
+              icon={AlertTriangle}
               link="/loans?filter=overdue"
               urgent={urgent_tasks.overdue_count > 0}
             />
@@ -343,8 +363,7 @@ const LibrarianDashboard = () => {
               title="Multas Pendientes"
               value={urgent_tasks.pending_fines_count || 0}
               description="Por procesar pago"
-              color="orange"
-              icon="💸"
+              icon={DollarSign}
               link="/fines"
               urgent={urgent_tasks.pending_fines_count > 0}
             />
@@ -357,7 +376,7 @@ const LibrarianDashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-red-800">
-              ⚠️ Préstamos Vencidos
+              Préstamos Vencidos
             </h2>
             <Link to="/loans?filter=overdue">
               <Button variant="danger" size="sm">
@@ -378,7 +397,7 @@ const LibrarianDashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-yellow-800">
-              ⏰ Vencen Hoy
+              Vencen Hoy
             </h2>
             <span className="text-sm text-yellow-700">
               {today.due_today.length} préstamo
@@ -398,7 +417,7 @@ const LibrarianDashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-orange-800">
-              💸 Multas por Procesar
+              Multas por Procesar
             </h2>
             <Link to="/fines">
               <Button variant="outline" size="sm">
@@ -417,39 +436,35 @@ const LibrarianDashboard = () => {
       {/* Resumen semanal */}
       <div>
         <h2 className="mb-4 text-xl font-semibold text-gray-900">
-          📈 Resumen de la Semana
+          Resumen de la Semana
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Préstamos"
             value={weekly_summary.loans || 0}
             description="Esta semana"
-            color="blue"
-            icon="📊"
+            icon={BookOpen}
           />
 
           <StatCard
             title="Devoluciones"
             value={weekly_summary.returns || 0}
             description="Esta semana"
-            color="green"
-            icon="📈"
+            icon={CheckCircle}
           />
 
           <StatCard
             title="Multas Generadas"
             value={weekly_summary.fines_generated || 0}
             description="Esta semana"
-            color="red"
-            icon="⚠️"
+            icon={AlertTriangle}
           />
 
           <StatCard
             title="Ingresos"
             value={formatCurrency(weekly_summary.revenue || 0)}
             description="Esta semana"
-            color="emerald"
-            icon="💰"
+            icon={TrendingUp}
           />
         </div>
       </div>
@@ -459,7 +474,7 @@ const LibrarianDashboard = () => {
         weekly_summary.popular_books.length > 0 && (
           <div>
             <h2 className="mb-4 text-xl font-semibold text-gray-900">
-              🔥 Libros Más Populares (Esta Semana)
+              Libros Más Populares (Esta Semana)
             </h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {weekly_summary.popular_books.slice(0, 6).map((book, index) => (
@@ -470,15 +485,15 @@ const LibrarianDashboard = () => {
         )}
 
       {/* Acciones rápidas */}
-      <div className="p-6 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="p-6 border rounded-lg bg-gray-50">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">
-          ⚡ Acciones Rápidas
+          Acciones Rápidas
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link to="/loans" className="block">
             <div className="p-4 transition-shadow bg-white border rounded-lg cursor-pointer hover:shadow-md">
               <div className="text-center">
-                <div className="mb-2 text-2xl">📝</div>
+                <Plus className="w-6 h-6 mx-auto mb-2 text-gray-600" />
                 <div className="font-medium text-gray-900">Nuevo Préstamo</div>
                 <div className="text-sm text-gray-600">Registrar préstamo</div>
               </div>
@@ -488,7 +503,7 @@ const LibrarianDashboard = () => {
           <Link to="/loans?filter=active" className="block">
             <div className="p-4 transition-shadow bg-white border rounded-lg cursor-pointer hover:shadow-md">
               <div className="text-center">
-                <div className="mb-2 text-2xl">↩️</div>
+                <RotateCcw className="w-6 h-6 mx-auto mb-2 text-gray-600" />
                 <div className="font-medium text-gray-900">
                   Procesar Devolución
                 </div>
@@ -502,7 +517,7 @@ const LibrarianDashboard = () => {
           <Link to="/fines" className="block">
             <div className="p-4 transition-shadow bg-white border rounded-lg cursor-pointer hover:shadow-md">
               <div className="text-center">
-                <div className="mb-2 text-2xl">💳</div>
+                <CreditCard className="w-6 h-6 mx-auto mb-2 text-gray-600" />
                 <div className="font-medium text-gray-900">Procesar Pago</div>
                 <div className="text-sm text-gray-600">Cobrar multas</div>
               </div>
@@ -512,7 +527,7 @@ const LibrarianDashboard = () => {
           <Link to="/books" className="block">
             <div className="p-4 transition-shadow bg-white border rounded-lg cursor-pointer hover:shadow-md">
               <div className="text-center">
-                <div className="mb-2 text-2xl">🔍</div>
+                <Search className="w-6 h-6 mx-auto mb-2 text-gray-600" />
                 <div className="font-medium text-gray-900">Buscar Libros</div>
                 <div className="text-sm text-gray-600">Consultar catálogo</div>
               </div>
@@ -524,9 +539,9 @@ const LibrarianDashboard = () => {
       {/* Estado del sistema */}
       {!hasUrgentTasks && (
         <div className="py-8 text-center border border-green-200 rounded-lg bg-green-50">
-          <div className="mb-2 text-4xl">✅</div>
+          <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-600" />
           <h3 className="text-lg font-semibold text-green-800">
-            ¡Sistema bajo control!
+            Sistema bajo control
           </h3>
           <p className="mt-1 text-green-700">
             No hay tareas urgentes pendientes

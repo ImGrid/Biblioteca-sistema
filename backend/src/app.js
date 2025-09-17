@@ -17,7 +17,7 @@ const categoriesRoutes = require("./routes/categories");
 const loansRoutes = require("./routes/loans");
 const finesRoutes = require("./routes/fines");
 const dashboardRoutes = require("./routes/dashboard");
-const usersRoutes = require("./routes/users"); // NUEVO - Rutas de usuarios
+const usersRoutes = require("./routes/users");
 
 const app = express();
 
@@ -119,7 +119,7 @@ app.use((req, res, next) => {
     req.url.includes("/loans") ||
     req.url.includes("/fines") ||
     req.url.includes("/dashboard") ||
-    req.url.includes("/users") // NUEVO - incluir rutas de usuarios en auditoría
+    req.url.includes("/users")
   ) {
     logger.audit(
       "HTTP Request",
@@ -147,7 +147,7 @@ app.use("/api/categories", categoriesRoutes);
 app.use("/api/loans", loansRoutes);
 app.use("/api/fines", finesRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/users", usersRoutes); // NUEVO - Rutas de gestión de usuarios
+app.use("/api/users", usersRoutes);
 
 // Ruta de información del sistema (para debugging en desarrollo)
 if (process.env.NODE_ENV === "development") {

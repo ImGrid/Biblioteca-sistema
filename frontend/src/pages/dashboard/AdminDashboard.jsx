@@ -6,36 +6,37 @@ import { formatDate, formatCurrency } from "../../utils/formatters";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import Button from "../../components/common/Button";
+import {
+  Users,
+  BookOpen,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
+  FileText,
+  Settings,
+  BarChart3,
+} from "lucide-react";
 
-const StatCard = ({ title, value, description, color = "blue", link }) => (
+const StatCard = ({ title, value, description, icon: Icon, link }) => (
   <div className="p-6 bg-white border rounded-lg">
-    <div className={`text-3xl font-bold text-${color}-600`}>{value}</div>
-    <div className="mt-1 text-sm font-medium text-gray-800">{title}</div>
-    {description && <p className="mt-2 text-xs text-gray-500">{description}</p>}
+    <div className="flex items-center">
+      {Icon && <Icon className="w-6 h-6 mr-3 text-gray-600" />}
+      <div className="flex-1">
+        <div className="text-3xl font-bold text-gray-900">{value}</div>
+        <div className="mt-1 text-sm font-medium text-gray-700">{title}</div>
+        {description && (
+          <p className="mt-2 text-xs text-gray-500">{description}</p>
+        )}
+      </div>
+    </div>
     {link && (
       <Link
         to={link}
-        className={`text-sm text-${color}-600 hover:text-${color}-800 mt-2 inline-block`}
+        className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-800"
       >
         Ver detalles →
       </Link>
     )}
-  </div>
-);
-
-const TrendCard = ({ title, data, color = "blue" }) => (
-  <div className="p-4 bg-white border rounded-lg">
-    <h4 className="mb-2 font-medium text-gray-900">{title}</h4>
-    <div className="space-y-1">
-      {data.slice(0, 3).map((item, index) => (
-        <div key={index} className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 truncate">{item.month}</span>
-          <span className={`font-medium text-${color}-600`}>
-            {item.loan_count}
-          </span>
-        </div>
-      ))}
-    </div>
   </div>
 );
 
@@ -92,16 +93,21 @@ const AdminDashboard = () => {
       {/* Alertas críticas */}
       {(alerts.overdue_loans > 0 || alerts.unpaid_fines > 0) && (
         <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-          <h3 className="mb-2 font-medium text-red-900">
-            ⚠️ Alertas del Sistema
-          </h3>
-          <div className="grid grid-cols-1 gap-2 text-sm text-red-800 md:grid-cols-2">
-            {alerts.overdue_loans > 0 && (
-              <div>• {alerts.overdue_loans} préstamos vencidos</div>
-            )}
-            {alerts.unpaid_fines > 0 && (
-              <div>• {alerts.unpaid_fines} multas sin pagar</div>
-            )}
+          <div className="flex items-start">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3 mt-0.5" />
+            <div>
+              <h3 className="mb-2 font-medium text-red-900">
+                Alertas del Sistema
+              </h3>
+              <div className="grid grid-cols-1 gap-2 text-sm text-red-800 md:grid-cols-2">
+                {alerts.overdue_loans > 0 && (
+                  <div>• {alerts.overdue_loans} préstamos vencidos</div>
+                )}
+                {alerts.unpaid_fines > 0 && (
+                  <div>• {alerts.unpaid_fines} multas sin pagar</div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -116,28 +122,28 @@ const AdminDashboard = () => {
             title="Total Usuarios"
             value={system_overview.users || 0}
             description="Usuarios activos registrados"
-            color="blue"
+            icon={Users}
             link="/admin/users"
           />
           <StatCard
             title="Total Libros"
             value={system_overview.books || 0}
             description={`${system_overview.total_copies || 0} copias totales`}
-            color="green"
+            icon={BookOpen}
             link="/admin/books"
           />
           <StatCard
             title="Préstamos Activos"
             value={system_overview.active_loans || 0}
             description={`${system_overview.overdue_loans || 0} vencidos`}
-            color="purple"
+            icon={FileText}
             link="/loans"
           />
           <StatCard
             title="Tasa de Utilización"
             value={`${system_overview.utilization_rate || 0}%`}
             description="Copias en préstamo vs totales"
-            color="orange"
+            icon={BarChart3}
           />
         </div>
       </div>
@@ -154,26 +160,26 @@ const AdminDashboard = () => {
             description={`${formatCurrency(
               financial.unpaid_amount || 0
             )} por cobrar`}
-            color="red"
+            icon={AlertTriangle}
             link="/fines"
           />
           <StatCard
             title="Ingresos del Mes"
             value={formatCurrency(financial.monthly_revenue || 0)}
             description="Multas cobradas este mes"
-            color="green"
+            icon={DollarSign}
           />
           <StatCard
             title="Ingresos Totales"
             value={formatCurrency(financial.total_revenue || 0)}
             description={`Promedio: ${formatCurrency(financial.avg_fine || 0)}`}
-            color="blue"
+            icon={TrendingUp}
           />
           <StatCard
             title="Total Multas"
             value={financial.total_fines || 0}
             description="Multas generadas históricamente"
-            color="gray"
+            icon={FileText}
           />
         </div>
       </div>
@@ -188,19 +194,19 @@ const AdminDashboard = () => {
             title="Nuevos Préstamos"
             value={monthly_activity.loans || 0}
             description="Préstamos registrados este mes"
-            color="blue"
+            icon={BookOpen}
           />
           <StatCard
             title="Devoluciones"
             value={monthly_activity.returns || 0}
             description="Libros devueltos este mes"
-            color="green"
+            icon={FileText}
           />
           <StatCard
             title="Nuevos Usuarios"
             value={monthly_activity.new_users || 0}
             description="Registros nuevos este mes"
-            color="purple"
+            icon={Users}
           />
         </div>
       </div>
@@ -224,7 +230,7 @@ const AdminDashboard = () => {
             {(top_performers.books || []).slice(0, 5).map((book, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-2 rounded bg-gray-50"
+                className="flex items-center justify-between p-3 rounded bg-gray-50"
               >
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
@@ -232,7 +238,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="text-xs text-gray-500">{book.authors}</div>
                 </div>
-                <div className="text-sm font-bold text-blue-600">
+                <div className="text-sm font-bold text-gray-700">
                   {book.total_loans} préstamos
                 </div>
               </div>
@@ -257,7 +263,7 @@ const AdminDashboard = () => {
             {(top_performers.users || []).slice(0, 5).map((user, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-2 rounded bg-gray-50"
+                className="flex items-center justify-between p-3 rounded bg-gray-50"
               >
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
@@ -266,11 +272,11 @@ const AdminDashboard = () => {
                   <div className="text-xs text-gray-500">{user.email}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-green-600">
+                  <div className="text-sm font-bold text-gray-700">
                     {user.total_loans} préstamos
                   </div>
                   {user.active_loans > 0 && (
-                    <div className="text-xs text-blue-600">
+                    <div className="text-xs text-gray-500">
                       {user.active_loans} activos
                     </div>
                   )}
@@ -290,7 +296,7 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
             {top_performers.categories.map((category, index) => (
               <div key={index} className="p-3 text-center rounded bg-gray-50">
-                <div className="text-lg font-bold text-purple-600">
+                <div className="text-lg font-bold text-gray-700">
                   {category.loan_count}
                 </div>
                 <div className="text-sm font-medium text-gray-900">
@@ -313,8 +319,8 @@ const AdminDashboard = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
             {trends.loan_history.map((item, index) => (
-              <div key={index} className="p-3 text-center rounded bg-blue-50">
-                <div className="text-lg font-bold text-blue-600">
+              <div key={index} className="p-3 text-center rounded bg-gray-50">
+                <div className="text-lg font-bold text-gray-700">
                   {item.loan_count}
                 </div>
                 <div className="text-xs text-gray-600">{item.month}</div>

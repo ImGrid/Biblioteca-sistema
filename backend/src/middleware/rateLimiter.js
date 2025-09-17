@@ -1,6 +1,6 @@
 const logger = require("../utils/logger");
 
-// Store en memoria para rate limiting (en producción usar Redis)
+// Store en memoria para rate limiting
 const rateLimitStore = new Map();
 
 // Limpiar entradas expiradas cada 5 minutos
